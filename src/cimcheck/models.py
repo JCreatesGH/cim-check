@@ -36,6 +36,14 @@ MODELS: Dict[str, DataModel] = {
         allowed={"action": ["allowed", "blocked", "teardown"],
                  "transport": ["tcp", "udp", "icmp"]},
     ),
+    "Change": DataModel(
+        name="Change",
+        required=["action", "dvc", "object"],
+        recommended=["command", "status", "user", "object_category"],
+        types={"dvc": "string"},
+        allowed={"action": ["created", "updated", "deleted", "read"],
+                 "status": ["success", "failure"]},
+    ),
 }
 
 

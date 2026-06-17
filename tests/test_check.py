@@ -47,3 +47,15 @@ def test_compliance_report():
     assert rep.total == 2 and rep.compliant == 1
     assert rep.compliance_pct == 50.0
     assert rep.findings_by_rule["missing-required"] >= 1
+
+
+def test_change_model():
+    change = get_model("Change")
+    assert change is not None
+    ok = {"action": "updated", "dvc": "host01", "object": "firewall_rule", "status": "success"}
+    # required + valid enums satisfied -> compliant (only LOW missing-recommended may remain)
+    assert all(f.severity != "high" for f in check_event(ok, change))
+    assert "invalid-value" not in rules(check_event(ok, change))
+    bad = {"action": "modified", "dvc": "host01"}   # missing object + invalid action value
+    r = rules(check_event(bad, change))
+    assert "missing-required" in r and "invalid-value" in r

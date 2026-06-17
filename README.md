@@ -19,7 +19,7 @@ pip install cimcheck
 ```python
 from cimcheck import get_model, check_event, check_events
 
-model = get_model("Authentication")    # Web, Network_Traffic also built in
+model = get_model("Authentication")    # Web, Network_Traffic, Change also built in
 
 for f in check_event(event, model):
     print(f.severity, f.rule, f.field, f.message)
@@ -29,6 +29,18 @@ report.compliance_pct                  # 87.5
 report.findings_by_rule                # {"missing-required": 3, "wrong-type": 1, ...}
 ```
 
+## CLI
+
+Installing the package adds a `cimcheck` command — feed it events as JSON (a list, or a Splunk
+`{result:[...]}` export):
+
+```bash
+$ cimcheck Authentication events.json                  # compliance summary
+$ cimcheck Web events.json --findings --json           # per-event findings, machine-readable
+$ cimcheck Network_Traffic events.json --min-compliance 95   # exit 1 below 95% (CI gate)
+$ cimcheck --list-models
+```
+
 ## Checks
 
 - **`missing-required`** (high) — a required CIM field is absent or empty; these break data-model acceleration.
@@ -36,12 +48,12 @@ report.findings_by_rule                # {"missing-required": 3, "wrong-type": 1
 - **`invalid-value`** (medium) — enum fields checked against allowed sets (`action ∈ {success, failure, error}`, `http_method ∈ {GET, POST, …}`).
 - **`missing-recommended`** (low) — recommended fields that improve correlation.
 
-An event is counted "compliant" if it has no high-severity findings. Define your own `DataModel` to extend beyond the three built in.
+An event is counted "compliant" if it has no high-severity findings. Define your own `DataModel` to extend beyond the four built in (Authentication, Web, Network_Traffic, Change).
 
 ## Development
 
 ```bash
-python -m pytest -q   # 6 tests
+pip install -e .[dev] && python -m pytest -q   # 12 tests
 ```
 
 ## License
