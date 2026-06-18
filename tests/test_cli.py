@@ -43,3 +43,29 @@ def test_cli_accepts_result_wrapper(tmp_path, capsys):
     f = tmp_path / "w.json"
     f.write_text(json.dumps({"result": rows}))
     assert main(["Authentication", str(f)]) == 0
+
+
+def test_cli_fieldalias_stanza(tmp_path, capsys):
+    path = _events(tmp_path, [
+        {"action": "success", "username": "a", "src_ip": "1.1.1.1"},
+        {"action": "success", "username": "b", "src_ip": "2.2.2.2"},
+    ])
+    assert main(["Authentication", path, "--fieldalias", "my:st"]) == 0
+    out = capsys.readouterr().out
+    assert "[my:st]" in out
+    assert "FIELDALIAS-cim_user = username AS user" in out
+    assert "FIELDALIAS-cim_src = src_ip AS src" in out
+
+
+def test_cli_summary_shows_alias_hint(tmp_path, capsys):
+    path = _events(tmp_path, [{"action": "success", "username": "a", "src_ip": "1.1.1.1"}])
+    assert main(["Authentication", path]) == 0
+    out = capsys.readouterr().out
+    assert "fixable via FIELDALIAS" in out and "username→user" in out
+
+
+def test_cli_json_includes_suggested_aliases(tmp_path, capsys):
+    path = _events(tmp_path, [{"action": "success", "username": "a", "src_ip": "1.1.1.1"}])
+    assert main(["Authentication", path, "--json"]) == 0
+    rep = json.loads(capsys.readouterr().out)
+    assert rep["suggested_aliases"]["user"] == "username"

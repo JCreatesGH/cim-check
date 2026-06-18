@@ -6,7 +6,7 @@ import sys
 from typing import List, Optional
 
 from .models import MODELS, get_model
-from .check import check_event, check_events
+from .check import check_event, check_events, suggest_fieldaliases, render_props_conf
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -18,6 +18,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--findings", action="store_true", help="show per-event findings, not just the summary")
     parser.add_argument("--min-compliance", type=float, default=None,
                         help="exit 1 if compliance %% is below this (CI gate)")
+    parser.add_argument("--fieldalias", metavar="SOURCETYPE",
+                        help="emit a props.conf FIELDALIAS stanza remediating detected aliases")
     parser.add_argument("--json", action="store_true", help="emit the report as JSON")
     args = parser.parse_args(argv)
 
@@ -42,11 +44,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("error: expected a JSON list of events (or {result: [...]})", file=sys.stderr)
         return 2
 
+    if args.fieldalias:
+        aliases = suggest_fieldaliases(events, model)
+        print(render_props_conf(args.fieldalias, aliases), end="")
+        return 0
+
     report = check_events(events, model)
 
     if args.json:
         out = {"model": report.model, "total": report.total, "compliant": report.compliant,
-               "compliance_pct": report.compliance_pct, "findings_by_rule": report.findings_by_rule}
+               "compliance_pct": report.compliance_pct, "findings_by_rule": report.findings_by_rule,
+               "suggested_aliases": suggest_fieldaliases(events, model)}
         if args.findings:
             out["events"] = [[f.__dict__ for f in check_event(ev, model)] for ev in events]
         print(json.dumps(out, indent=2))
@@ -55,6 +63,10 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"({report.compliant}/{report.total} events)")
         for rule, n in sorted(report.findings_by_rule.items(), key=lambda kv: -kv[1]):
             print(f"  {rule}: {n}")
+        aliases = suggest_fieldaliases(events, model)
+        if aliases:
+            fixes = ", ".join(f"{src}→{cim}" for cim, src in sorted(aliases.items()))
+            print(f"  fixable via FIELDALIAS: {fixes}  (run --fieldalias <sourcetype>)")
         if args.findings:
             for i, ev in enumerate(events):
                 for f in check_event(ev, model):
